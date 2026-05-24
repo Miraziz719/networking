@@ -1,0 +1,15 @@
+# Grafana dashboard auto-provisioning config
+apiVersion: 1
+
+providers:
+  - name:            'BTEC Unit 6 Dashboards'
+    orgId:           1
+    folder:          'Cloud Networking'
+    folderUid:       'btec-unit6'
+    type:            file
+    disableDeletion: false
+    editable:        true
+    updateIntervalSeconds: 10
+    allowUiUpdates:  true
+    options:
+      path: /etc/grafana/provisioning/dashboards

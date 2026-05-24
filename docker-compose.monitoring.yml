@@ -1,0 +1,131 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Docker Compose — Monitoring Stack Extension
+# BTEC Unit 6: Networking in the Cloud
+#
+# Adds Prometheus + Grafana + Node Exporter + cAdvisor to the main stack.
+#
+# USAGE (run alongside main stack):
+#   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
+#
+# Access:
+#   Prometheus: http://localhost:9090
+#   Grafana:    http://localhost:3000  (admin / btecunit6)
+#   Node Exporter metrics: http://localhost:9100/metrics
+# ══════════════════════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+
+  # ── Prometheus — Metrics Collection ──────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - private-net
+      - monitoring-net
+    restart: unless-stopped
+    labels:
+      btec.role: "monitoring"
+      btec.service: "prometheus"
+
+  # ── Grafana — Dashboard Visualisation ────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana
+    ports:
+      - "3030:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=btecunit6
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=localhost
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/dashboard.json
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring-net
+      - private-net
+    restart: unless-stopped
+    labels:
+      btec.role: "monitoring"
+      btec.service: "grafana"
+
+  # ── Node Exporter — Host OS Metrics (CPU, Memory, Disk, Network) ─────────
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - monitoring-net
+    restart: unless-stopped
+    labels:
+      btec.role: "monitoring"
+      btec.service: "node-exporter"
+
+  # ── cAdvisor — Docker Container Metrics ──────────────────────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - monitoring-net
+    restart: unless-stopped
+    labels:
+      btec.role: "monitoring"
+      btec.service: "cadvisor"
+
+# ── Persistent volumes ────────────────────────────────────────────────────
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# ── Monitoring-only network ───────────────────────────────────────────────
+networks:
+  monitoring-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.4.0/24   # Simulates 10.0.4.0/24 monitoring subnet
+    labels:
+      btec.subnet: "monitoring"
+  private-net:
+    external: true
+    name: networking_private-net

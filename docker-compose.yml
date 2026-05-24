@@ -1,0 +1,150 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Docker Compose — Main Stack
+# BTEC Unit 6: Networking in the Cloud
+#
+# Services:
+#   nginx      — Load balancer / reverse proxy  (PUBLIC SUBNET)
+#   frontend   — Dashboard UI
+#   service-1  — ERP backend                   (PRIVATE SUBNET A)
+#   service-2  — CRM/WMS backend               (PRIVATE SUBNET B)
+#
+# Networks simulate VPC architecture:
+#   public-net   → internet-facing (nginx only)
+#   private-net  → internal backend communication
+#
+# Run:  docker compose up --build
+# Scale: docker compose up --build --scale service-1=3 --scale service-2=3
+# ══════════════════════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+
+  # ── Nginx Load Balancer (Public Subnet) ────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nginx-lb
+    ports:
+      - "8888:80"    # Server nginx proxies domain → localhost:8888 → Docker nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Uncomment for SSL:
+      # - ./nginx/nginx.ssl.conf:/etc/nginx/nginx.conf:ro
+      # - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      service-1:
+        condition: service_healthy
+      service-2:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    networks:
+      - public-net    # Connected to public network (internet-facing)
+      - private-net   # Connected to private network (can reach backends)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health/service1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      btec.role: "load-balancer"
+      btec.subnet: "public"
+      btec.unit: "unit6-cloud-networking"
+
+  # ── Frontend Dashboard ──────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend-dashboard
+    networks:
+      - private-net
+    restart: unless-stopped
+    labels:
+      btec.role: "frontend"
+      btec.subnet: "public"
+
+  # ── ERP Service 1 (Private Subnet A) ───────────────────────────────────────
+  service-1:
+    build:
+      context: ./service-1
+      dockerfile: Dockerfile
+    container_name: erp-service-1
+    environment:
+      - PORT=3001
+      - SERVICE_NAME=ERP-Service-1
+      - NODE_ENV=production
+    ports:
+      - "3001:3001"   # Also accessible directly on host port 3001
+    networks:
+      - private-net   # Private subnet only — no direct internet access
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      btec.role: "backend"
+      btec.service: "erp"
+      btec.subnet: "private-a"
+
+  # ── CRM/WMS Service 2 (Private Subnet B) ───────────────────────────────────
+  service-2:
+    build:
+      context: ./service-2
+      dockerfile: Dockerfile
+    container_name: crm-wms-service-2
+    environment:
+      - PORT=3002
+      - SERVICE_NAME=CRM-WMS-Service-2
+      - NODE_ENV=production
+    ports:
+      - "3002:3002"   # Also accessible directly on host port 3002
+    networks:
+      - private-net   # Private subnet only
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3002/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      btec.role: "backend"
+      btec.service: "crm-wms"
+      btec.subnet: "private-b"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# NETWORKS — simulate VPC subnets
+#
+# public-net:  internet-facing, only nginx is attached
+# private-net: internal only, all backend services + nginx (for proxying)
+#
+# This architecture means:
+#   - service-1 and service-2 have NO direct public IP
+#   - All traffic must flow through nginx (the load balancer)
+#   - Mimics AWS VPC with public/private subnets and a load balancer
+# ══════════════════════════════════════════════════════════════════════════════
+networks:
+  public-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.1.0/24   # Simulates 10.0.1.0/24 public subnet
+    labels:
+      btec.subnet: "public"
+      btec.description: "Internet-facing network — nginx only"
+
+  private-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.2.0/24   # Simulates 10.0.2.0/24 private subnet
+    labels:
+      btec.subnet: "private"
+      btec.description: "Internal network — no direct internet access"
+    internal: false               # Set to true to fully block internet access

@@ -1,0 +1,228 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# GitHub Actions CI/CD Pipeline
+# BTEC Unit 6: Networking in the Cloud
+#
+# Pipeline stages:
+#   1. test     — Install dependencies, run unit tests for both services
+#   2. build    — Build Docker images, push to Docker Hub
+#   3. deploy   — SSH to server, pull latest images, restart containers
+#
+# Triggers:
+#   - Push to main branch (full pipeline: test → build → deploy)
+#   - Pull request to main (test + build only, no deploy)
+#
+# Required GitHub Secrets:
+#   DOCKER_HUB_USERNAME   — Docker Hub username
+#   DOCKER_HUB_TOKEN      — Docker Hub access token
+#   DEPLOY_HOST           — Server IP address
+#   DEPLOY_USER           — SSH username (e.g. ubuntu)
+#   DEPLOY_SSH_KEY        — Private SSH key for server access
+# ══════════════════════════════════════════════════════════════════════════════
+
+name: CI/CD — Cloud Networking Demo
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_SERVICE1: ${{ secrets.DOCKER_HUB_USERNAME }}/erp-service
+  IMAGE_SERVICE2: ${{ secrets.DOCKER_HUB_USERNAME }}/crm-wms-service
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Test
+  # ────────────────────────────────────────────────────────────────────────────
+  test:
+    name: 🧪 Run Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service: [service-1, service-2]
+        node-version: [18.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.service }}/package.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.service }}
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ${{ matrix.service }}
+        run: |
+          # Start the service in background
+          PORT=$([ "${{ matrix.service }}" = "service-1" ] && echo "3001" || echo "3002")
+          PORT=$PORT node src/index.js &
+          SERVICE_PID=$!
+          sleep 2
+
+          # Run tests
+          PORT=$PORT npm test
+
+          # Cleanup
+          kill $SERVICE_PID || true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.service }}
+          path: ${{ matrix.service }}/*.log
+          if-no-files-found: ignore
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Build Docker Images
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: 🐳 Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: test   # Only build if tests pass
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Extract metadata for service-1
+        id: meta1
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_SERVICE1 }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push ERP Service 1
+        uses: docker/build-push-action@v5
+        with:
+          context: ./service-1
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta1.outputs.tags }}
+          labels: ${{ steps.meta1.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for service-2
+        id: meta2
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_SERVICE2 }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push CRM/WMS Service 2
+        uses: docker/build-push-action@v5
+        with:
+          context: ./service-2
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta2.outputs.tags }}
+          labels: ${{ steps.meta2.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/cloud-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 3: Deploy to Server
+  # Only runs on push to main (not on pull requests)
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment:
+      name: production
+      url: http://${{ secrets.DEPLOY_HOST }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy docker-compose files to server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            docker-compose.yml \
+            docker-compose.monitoring.yml \
+            .env.example \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/cloud-networking/
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
+            set -e
+            cd ~/cloud-networking
+
+            # Pull latest images
+            docker compose pull
+
+            # Rolling restart with zero-downtime
+            docker compose up -d --remove-orphans
+
+            # Clean up old images
+            docker image prune -f
+
+            echo "✅ Deployment complete!"
+            docker compose ps
+          EOF
+
+      - name: Health check after deploy
+        run: |
+          sleep 15  # Wait for services to start
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.DEPLOY_HOST }}/health/service1)
+          if [ "$status" != "200" ]; then
+            echo "❌ Health check failed! Status: $status"
+            exit 1
+          fi
+          echo "✅ Health check passed (HTTP $status)"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "🎉 Deployment to production succeeded!"
+          else
+            echo "💥 Deployment failed — check the logs"
+          fi

@@ -1,0 +1,55 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Docker Compose — Horizontal Scaling Demonstration
+# BTEC Unit 6: Networking in the Cloud
+#
+# This file extends docker-compose.yml to run multiple replicas of each
+# service. This demonstrates:
+#   - Horizontal scaling (adding more instances rather than bigger hardware)
+#   - Load distribution across multiple replicas
+#   - High availability (if one instance dies, others keep serving requests)
+#
+# USAGE:
+#   docker compose -f docker-compose.yml -f docker-compose.scale.yml up --build
+#
+# This starts:
+#   - 3x ERP Service 1 replicas
+#   - 3x CRM/WMS Service 2 replicas
+#   - 1x Nginx (distributes across ALL 6 instances)
+#
+# Watch the hostname field in API responses — you'll see different container
+# IDs on each request, proving load distribution across replicas.
+# ══════════════════════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+
+  service-1:
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  service-2:
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3

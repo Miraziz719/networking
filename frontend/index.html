@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UzCloth Ulgurji — Bulutli Tarmoq Boshqaruvi</title>
+  <style>
+    /* ── Reset & Base ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0f172a;
+      --card:      #1e293b;
+      --border:    #334155;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+      --accent:    #6366f1;
+      --erp:       #3b82f6;
+      --crm:       #10b981;
+      --warn:      #f59e0b;
+      --danger:    #ef4444;
+      --radius:    12px;
+    }
+    html { font-size: 15px; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), #818cf8);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .header h1 { font-size: 1.2rem; font-weight: 700; }
+    .header p  { font-size: 0.75rem; color: var(--muted); }
+    .status-badge {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 600;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--crm);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--crm);
+           animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+
+    .main { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+
+    /* ── Grid ───────────────────────────────────────────────────── */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media(max-width:1100px){ .grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:1fr 1fr;} }
+    @media(max-width:700px) { .grid-4,.grid-2,.grid-3{grid-template-columns:1fr;} }
+
+    /* ── Card ───────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--muted); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .card-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .card-sub   { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Stat Cards ─────────────────────────────────────────────── */
+    .stat-erp  { border-top: 3px solid var(--erp); }
+    .stat-crm  { border-top: 3px solid var(--crm); }
+    .stat-total{ border-top: 3px solid var(--accent); }
+    .stat-rps  { border-top: 3px solid var(--warn); }
+
+    /* ── Active Service Banner ──────────────────────────────────── */
+    #active-service-banner {
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: all 0.4s ease;
+    }
+    .banner-info h2 { font-size: 1.4rem; font-weight: 800; }
+    .banner-info p  { color: rgba(255,255,255,0.7); margin-top: 4px; }
+    .banner-meta { text-align: right; }
+    .banner-meta .req-id { font-size: 0.7rem; opacity: .7; font-family: monospace; }
+    .banner-meta .req-num { font-size: 1.8rem; font-weight: 800; }
+
+    /* ── Load Balance Visualiser ────────────────────────────────── */
+    .lb-visual { margin-bottom: 24px; }
+    .lb-title  { font-size: 1rem; font-weight: 700; margin-bottom: 16px;
+                 display: flex; align-items: center; gap: 8px; }
+    .lb-diagram {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: wrap; padding: 20px;
+      background: rgba(99,102,241,0.05);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: var(--radius);
+    }
+    .lb-node {
+      text-align: center; padding: 16px 20px;
+      border-radius: 10px; border: 2px solid;
+      transition: all 0.3s ease; position: relative;
+      min-width: 130px;
+    }
+    .lb-node.internet  { border-color: var(--warn); background: rgba(245,158,11,.1); }
+    .lb-node.nginx     { border-color: var(--accent); background: rgba(99,102,241,.1); }
+    .lb-node.service   { border-color: var(--border); background: rgba(30,41,59,0.8); }
+    .lb-node.active    { box-shadow: 0 0 20px currentColor; transform: scale(1.05); }
+    .lb-node .icon     { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+    .lb-node .name     { font-weight: 700; font-size: 0.85rem; }
+    .lb-node .detail   { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+    .lb-arrow {
+      font-size: 1.5rem; color: var(--muted); padding: 0 8px;
+      transition: color 0.3s;
+    }
+    .lb-arrow.active { color: var(--accent); }
+    .services-col { display: flex; flex-direction: column; gap: 12px; }
+
+    /* ── Bar chart ──────────────────────────────────────────────── */
+    .bar-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .bar-label { width: 110px; font-size: 0.8rem; color: var(--muted); flex-shrink: 0; }
+    .bar-track { flex: 1; height: 22px; background: rgba(255,255,255,.06);
+                 border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 4px; transition: width 0.6s ease;
+                 display: flex; align-items: center; padding-left: 8px;
+                 font-size: 0.72rem; font-weight: 700; }
+    .bar-count { width: 50px; text-align: right; font-size: 0.8rem; font-weight: 700; }
+
+    /* ── Request Log ────────────────────────────────────────────── */
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .log-table th { padding: 8px 12px; text-align: left; color: var(--muted);
+                    font-weight: 600; border-bottom: 1px solid var(--border); }
+    .log-table td { padding: 8px 12px; border-bottom: 1px solid rgba(51,65,85,.5); }
+    .log-table tr:hover td { background: rgba(255,255,255,.03); }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 0.7rem; font-weight: 700;
+    }
+    .badge-erp { background: rgba(59,130,246,.2); color: #93c5fd; }
+    .badge-crm { background: rgba(16,185,129,.2); color: #6ee7b7; }
+
+    /* ── Networking concepts ────────────────────────────────────── */
+    .concepts-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+    @media(max-width:700px){ .concepts-grid{grid-template-columns:1fr;} }
+    .concept {
+      padding: 14px 16px; border-radius: 10px;
+      border-left: 4px solid;
+      background: rgba(255,255,255,.03);
+    }
+    .concept h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+    .concept p  { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── Controls ───────────────────────────────────────────────── */
+    .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+    .btn {
+      padding: 8px 18px; border-radius: 8px; border: none;
+      font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+    .btn-secondary { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-danger { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; }
+    .btn-danger:hover { background: rgba(239,68,68,.25); }
+    .auto-label { font-size: 0.8rem; color: var(--muted); }
+    .speed-select {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); padding: 6px 10px; border-radius: 8px;
+      font-size: 0.82rem; cursor: pointer;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    .footer {
+      text-align: center; padding: 24px; color: var(--muted);
+      font-size: 0.75rem; border-top: 1px solid var(--border); margin-top: 24px;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ───────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 20px;
+      font-size: 0.82rem; transform: translateY(80px);
+      opacity: 0; transition: all 0.3s; z-index: 999;
+      max-width: 320px;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── Architecture diagram ────────────────────────────────────── */
+    .arch-diagram {
+      background: rgba(99,102,241,.04);
+      border: 1px dashed rgba(99,102,241,.3);
+      border-radius: var(--radius);
+      padding: 24px; font-family: monospace;
+      font-size: 0.78rem; line-height: 1.7; color: #cbd5e1;
+      overflow-x: auto; white-space: pre;
+    }
+    .section-heading {
+      font-size: 1rem; font-weight: 700; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">👗</div>
+    <div>
+      <h1>UzCloth Ulgurji MChJ — Bulutli Tizim Paneli</h1>
+      <p>Kiyim-kechak ulgurji kompaniyasi &nbsp;|&nbsp; ERP · CRM · WMS bulut platformasi</p>
+    </div>
+  </div>
+  <div class="status-badge">
+    <div class="dot"></div>
+    <span id="system-status">System Online</span>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ── Controls ──────────────────────────────────────────────────────── -->
+  <div class="controls">
+    <button class="btn btn-primary" onclick="sendRequest()">
+      ▶ Send Single Request
+    </button>
+    <button class="btn btn-secondary" id="auto-btn" onclick="toggleAuto()">
+      ⚡ Start Auto-Refresh
+    </button>
+    <button class="btn btn-danger" onclick="loadTest()">
+      🔥 Load Test (50 req)
+    </button>
+    <button class="btn btn-secondary" onclick="resetStats()">
+      🔄 Reset Stats
+    </button>
+    <span class="auto-label">Speed:</span>
+    <select class="speed-select" id="speed-select">
+      <option value="2000">Slow (2s)</option>
+      <option value="1000" selected>Normal (1s)</option>
+      <option value="500">Fast (0.5s)</option>
+      <option value="200">Turbo (0.2s)</option>
+    </select>
+    <span class="auto-label" id="auto-status"></span>
+  </div>
+
+  <!-- ── Stat cards ─────────────────────────────────────────────────────── -->
+  <div class="grid-4">
+    <div class="card stat-erp">
+      <div class="card-title">🔵 ERP So'rovlari</div>
+      <div class="card-value" id="erp-count">0</div>
+      <div class="card-sub" id="erp-pct">0% of total</div>
+    </div>
+    <div class="card stat-crm">
+      <div class="card-title">🟢 CRM/WMS So'rovlari</div>
+      <div class="card-value" id="crm-count">0</div>
+      <div class="card-sub" id="crm-pct">0% of total</div>
+    </div>
+    <div class="card stat-total">
+      <div class="card-title">📊 Jami So'rovlar</div>
+      <div class="card-value" id="total-count">0</div>
+      <div class="card-sub" id="balance-ratio">Balance: —</div>
+    </div>
+    <div class="card stat-rps">
+      <div class="card-title">⚡ Requests / sec</div>
+      <div class="card-value" id="rps">0.0</div>
+      <div class="card-sub" id="avg-latency">Avg latency: —</div>
+    </div>
+  </div>
+
+  <!-- ── Active Service Banner ─────────────────────────────────────────── -->
+  <div id="active-service-banner"
+       style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(99,102,241,.05));border:1px solid rgba(99,102,241,.3)">
+    <div class="banner-info">
+      <h2 id="banner-service">Waiting for first request…</h2>
+      <p  id="banner-desc">Click "Send Single Request" or start auto-refresh to begin</p>
+    </div>
+    <div class="banner-meta">
+      <div class="req-id" id="banner-id">—</div>
+      <div class="req-num" id="banner-num">—</div>
+      <div class="req-id">Request #</div>
+    </div>
+  </div>
+
+  <!-- ── Load Balance Visualiser ───────────────────────────────────────── -->
+  <div class="card lb-visual">
+    <div class="section-heading">🔀 Live Load Balancing Visualisation</div>
+    <div class="lb-diagram">
+      <!-- Internet -->
+      <div class="lb-node internet" id="node-internet">
+        <span class="icon">🌐</span>
+        <div class="name">Internet</div>
+        <div class="detail">Public Subnet</div>
+      </div>
+      <div class="lb-arrow" id="arrow-1">→</div>
+
+      <!-- Nginx -->
+      <div class="lb-node nginx" id="node-nginx">
+        <span class="icon">⚖️</span>
+        <div class="name">Nginx LB</div>
+        <div class="detail">Port 80 / 443</div>
+        <div class="detail" id="nginx-algo">Round Robin</div>
+      </div>
+      <div class="lb-arrow" id="arrow-2">→</div>
+
+      <!-- Services -->
+      <div class="services-col">
+        <div class="lb-node service" id="node-s1"
+             style="border-color:#3b82f6">
+          <span class="icon">📦</span>
+          <div class="name" style="color:#93c5fd">ERP Xizmati (Buyurtmalar)</div>
+          <div class="detail">10.0.2.10:3001</div>
+          <div class="detail" id="s1-reqs">0 reqs</div>
+        </div>
+        <div class="lb-node service" id="node-s2"
+             style="border-color:#10b981">
+          <span class="icon">🏪</span>
+          <div class="name" style="color:#6ee7b7">CRM/WMS (Mijozlar & Ombor)</div>
+          <div class="detail">10.0.3.10:3002</div>
+          <div class="detail" id="s2-reqs">0 reqs</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Request distribution bar ──────────────────────────────────────── -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="section-heading">📈 Request Distribution</div>
+      <div class="bar-wrap">
+        <div class="bar-label">ERP (S1)</div>
+        <div class="bar-track">
+          <div class="bar-fill" id="bar-erp"
+               style="width:0%;background:var(--erp);">0%</div>
+        </div>
+        <div class="bar-count" id="bar-erp-n">0</div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-label">CRM/WMS (S2)</div>
+        <div class="bar-track">
+          <div class="bar-fill" id="bar-crm"
+               style="width:0%;background:var(--crm);">0%</div>
+        </div>
+        <div class="bar-count" id="bar-crm-n">0</div>
+      </div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:.8rem;color:var(--muted);">
+          Balance quality: <span id="balance-quality" style="font-weight:700;color:var(--crm)">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-heading">🏥 Service Health</div>
+      <div id="health-s1" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:1.4rem">📦</span>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.9rem">ERP — Buyurtmalar & Inventar</div>
+          <div style="font-size:.75rem;color:var(--muted)" id="s1-uptime">Uptime: —</div>
+        </div>
+        <span id="s1-health-badge" class="badge" style="background:rgba(245,158,11,.2);color:#fde68a">Checking…</span>
+      </div>
+      <div id="health-s2" style="display:flex;align-items:center;gap:10px;padding:10px 0">
+        <span style="font-size:1.4rem">🏪</span>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.9rem">CRM/WMS — Mijozlar & Ombor</div>
+          <div style="font-size:.75rem;color:var(--muted)" id="s2-uptime">Uptime: —</div>
+        </div>
+        <span id="s2-health-badge" class="badge" style="background:rgba(245,158,11,.2);color:#fde68a">Checking…</span>
+      </div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)">
+        Health checks via <code>/health</code> endpoint every 10s
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Request log ────────────────────────────────────────────────────── -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="section-heading">🗒️ Live Request Log <span id="log-spinner" style="display:none"><div class="spinner"></div></span></div>
+    <div style="overflow-x:auto">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Timestamp</th>
+            <th>Service</th>
+            <th>Type</th>
+            <th>Request ID</th>
+            <th>Hostname</th>
+            <th>Latency</th>
+          </tr>
+        </thead>
+        <tbody id="log-body">
+          <tr>
+            <td colspan="7" style="text-align:center;color:var(--muted);padding:24px">
+              No requests yet — click Send or Start Auto-Refresh
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Architecture diagram ───────────────────────────────────────────── -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="section-heading">🏗️ Architecture Overview</div>
+    <div class="arch-diagram">
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         CLOUD VPC  (10.0.0.0/16)                            │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  PUBLIC SUBNET  (10.0.1.0/24)          Internet Gateway             │    │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │    │
+│  │  │                  Nginx Reverse Proxy / Load Balancer          │  │    │
+│  │  │                  Port 80 (HTTP) / 443 (HTTPS)                 │  │    │
+│  │  │                  Algorithm: Round Robin                        │  │    │
+│  │  │                  Health Check: /health every 30s              │  │    │
+│  │  └───────────────────────────────────────────────────────────────┘  │    │
+│  └──────────────────────────┬────────────────┬───────────────────────-─┘    │
+│                             │                │                               │
+│  ┌──────────────────────────▼──┐    ┌────────▼──────────────────────────┐   │
+│  │  PRIVATE SUBNET A           │    │  PRIVATE SUBNET B                 │   │
+│  │  (10.0.2.0/24)              │    │  (10.0.3.0/24)                    │   │
+│  │  ┌──────────────────────┐   │    │  ┌──────────────────────────────┐ │   │
+│  │  │  ERP Service 1       │   │    │  │  CRM/WMS Service 2           │ │   │
+│  │  │  Node.js Express     │   │    │  │  Node.js Express             │ │   │
+│  │  │  Port: 3001          │   │    │  │  Port: 3002                  │ │   │
+│  │  │  /health /metrics    │   │    │  │  /health /metrics            │ │   │
+│  │  │  /api/erp            │   │    │  │  /api/crm  /api/wms          │ │   │
+│  │  └──────────────────────┘   │    │  └──────────────────────────────┘ │   │
+│  └─────────────────────────────┘    └───────────────────────────────────┘   │
+│                                                                              │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  MONITORING SUBNET  (10.0.4.0/24)                                     │  │
+│  │  Prometheus :9090   →   Grafana :3000                                 │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  Internet → IGW → Nginx (Public) → [Round Robin] → Service 1 / Service 2
+  Prometheus scrapes /metrics from both services every 15s
+  GitHub Actions builds & pushes Docker images on every push to main
+    </div>
+  </div>
+
+  <!-- ── Networking concepts ────────────────────────────────────────────── -->
+  <div class="card" style="margin-bottom:24px">
+    <div class="section-heading">📚 Networking Concepts Demonstrated</div>
+    <div class="concepts-grid">
+      <div class="concept" style="border-color:var(--erp)">
+        <h4 style="color:#93c5fd">🌐 VPC & Subnets</h4>
+        <p>Virtual Private Cloud (10.0.0.0/16) divided into public subnet for Nginx (internet-facing) and private subnets for backend services (no direct internet access). Mirrors AWS/GCP VPC design.</p>
+      </div>
+      <div class="concept" style="border-color:var(--crm)">
+        <h4 style="color:#6ee7b7">⚖️ Load Balancing</h4>
+        <p>Nginx distributes traffic across both backend services using round-robin. Requests alternate between ERP Service 1 and CRM/WMS Service 2, demonstrating horizontal scaling.</p>
+      </div>
+      <div class="concept" style="border-color:var(--accent)">
+        <h4 style="color:#a5b4fc">🔁 Reverse Proxy</h4>
+        <p>Nginx acts as a reverse proxy — clients connect only to Nginx (public IP). Backend service IPs are hidden. Nginx forwards requests internally using Docker's DNS.</p>
+      </div>
+      <div class="concept" style="border-color:var(--warn)">
+        <h4 style="color:#fde68a">🔥 Firewall / Security Groups</h4>
+        <p>Only Nginx exposes port 80/443 externally. Backend services run on internal Docker network only. This simulates AWS Security Groups restricting inbound access.</p>
+      </div>
+      <div class="concept" style="border-color:#ec4899">
+        <h4 style="color:#f9a8d4">🔗 NAT Gateway</h4>
+        <p>Private subnet services reach the internet (e.g. npm install) through a NAT. Inbound traffic is blocked — outbound is allowed. Docker's bridge network applies the same principle.</p>
+      </div>
+      <div class="concept" style="border-color:#14b8a6">
+        <h4 style="color:#5eead4">🏷️ DNS Resolution</h4>
+        <p>Docker Compose creates an internal DNS. Services reach each other by name (service-1, service-2) rather than IP. Nginx upstream block uses these DNS names to forward traffic.</p>
+      </div>
+      <div class="concept" style="border-color:#f97316">
+        <h4 style="color:#fdba74">🚪 Gateway</h4>
+        <p>The Internet Gateway allows the public subnet (Nginx) to receive traffic from the internet. Private subnets have no IGW — they are isolated and only reachable via the load balancer.</p>
+      </div>
+      <div class="concept" style="border-color:#8b5cf6">
+        <h4 style="color:#c4b5fd">📈 Horizontal Scaling</h4>
+        <p>Run <code>docker compose up --scale service-1=3 service-2=3</code> to add replicas. Nginx automatically distributes requests across all instances without any config change.</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  UzCloth Ulgurji MChJ &nbsp;|&nbsp; BTEC Unit 6 — Bulutda Tarmoq &nbsp;|&nbsp; ERP · CRM · WMS &nbsp;|&nbsp;
+  Built with Node.js · Docker · Nginx · Prometheus · Grafana &nbsp;|&nbsp;
+  <span id="footer-time"></span>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────
+const state = {
+  erpCount: 0,
+  crmCount: 0,
+  total: 0,
+  log: [],
+  autoInterval: null,
+  rpsWindow: [],
+  latencies: [],
+};
+
+// ── API base (assumes frontend served behind same Nginx proxy) ────────────
+const API_BASE = window.location.origin;
+
+// ── Send request through Nginx load balancer ──────────────────────────────
+async function sendRequest() {
+  const start = performance.now();
+  document.getElementById('log-spinner').style.display = 'inline-block';
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/`, { cache: 'no-store' });
+    const data = await res.json();
+    const latency = Math.round(performance.now() - start);
+
+    state.total++;
+    state.rpsWindow.push(Date.now());
+    state.latencies.push(latency);
+    if (state.latencies.length > 50) state.latencies.shift();
+
+    const isERP = data.serviceType === 'ERP';
+    if (isERP) state.erpCount++; else state.crmCount++;
+
+    updateBanner(data, isERP);
+    updateStats();
+    updateBars();
+    updateVisualiser(isERP);
+    addLogRow(data, latency, isERP);
+    showToast(`✅ ${data.service} handled req #${state.total} in ${latency}ms`);
+
+  } catch (err) {
+    showToast(`❌ Request failed: ${err.message}`);
+    console.error(err);
+  } finally {
+    document.getElementById('log-spinner').style.display = 'none';
+  }
+}
+
+// ── Banner ────────────────────────────────────────────────────────────────
+function updateBanner(data, isERP) {
+  const banner = document.getElementById('active-service-banner');
+  const color  = isERP ? '#3b82f6' : '#10b981';
+  const light  = isERP ? 'rgba(59,130,246,.15)' : 'rgba(16,185,129,.15)';
+  const border = isERP ? 'rgba(59,130,246,.3)' : 'rgba(16,185,129,.3)';
+
+  banner.style.background = `linear-gradient(135deg, ${light}, rgba(15,23,42,.5))`;
+  banner.style.border      = `1px solid ${border}`;
+
+  document.getElementById('banner-service').textContent = `✅ ${data.service}`;
+  document.getElementById('banner-service').style.color = color;
+  document.getElementById('banner-desc').textContent    = data.description || data.message;
+  document.getElementById('banner-id').textContent      = data.requestId ? `ID: ${data.requestId}` : '';
+  document.getElementById('banner-num').textContent     = state.total;
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('erp-count').textContent  = state.erpCount;
+  document.getElementById('crm-count').textContent  = state.crmCount;
+  document.getElementById('total-count').textContent = state.total;
+
+  const erpPct = state.total ? Math.round(state.erpCount/state.total*100) : 0;
+  const crmPct = state.total ? Math.round(state.crmCount/state.total*100) : 0;
+  document.getElementById('erp-pct').textContent  = `${erpPct}% of total`;
+  document.getElementById('crm-pct').textContent  = `${crmPct}% of total`;
+
+  // Balance ratio
+  const ratio = state.erpCount && state.crmCount
+    ? `${state.erpCount}:${state.crmCount}`
+    : '—';
+  document.getElementById('balance-ratio').textContent = `Balance: ${ratio}`;
+
+  // RPS (last 10s)
+  const now = Date.now();
+  state.rpsWindow = state.rpsWindow.filter(t => now - t < 10000);
+  const rps = (state.rpsWindow.length / 10).toFixed(1);
+  document.getElementById('rps').textContent = rps;
+
+  // Avg latency
+  if (state.latencies.length) {
+    const avg = Math.round(state.latencies.reduce((a,b)=>a+b,0)/state.latencies.length);
+    document.getElementById('avg-latency').textContent = `Avg latency: ${avg}ms`;
+  }
+}
+
+// ── Bars ──────────────────────────────────────────────────────────────────
+function updateBars() {
+  const erpPct = state.total ? Math.round(state.erpCount/state.total*100) : 0;
+  const crmPct = state.total ? Math.round(state.crmCount/state.total*100) : 0;
+  document.getElementById('bar-erp').style.width = `${erpPct}%`;
+  document.getElementById('bar-erp').textContent = `${erpPct}%`;
+  document.getElementById('bar-crm').style.width = `${crmPct}%`;
+  document.getElementById('bar-crm').textContent = `${crmPct}%`;
+  document.getElementById('bar-erp-n').textContent = state.erpCount;
+  document.getElementById('bar-crm-n').textContent = state.crmCount;
+
+  // Balance quality
+  const diff = Math.abs(erpPct - crmPct);
+  const el   = document.getElementById('balance-quality');
+  if (state.total < 4) { el.textContent = '—'; el.style.color = 'var(--muted)'; }
+  else if (diff <= 5)  { el.textContent = '⭐ Excellent'; el.style.color = 'var(--crm)'; }
+  else if (diff <= 15) { el.textContent = '👍 Good';     el.style.color = 'var(--warn)'; }
+  else                 { el.textContent = '⚠️ Skewed';   el.style.color = 'var(--danger)'; }
+
+  document.getElementById('s1-reqs').textContent = `${state.erpCount} reqs`;
+  document.getElementById('s2-reqs').textContent = `${state.crmCount} reqs`;
+}
+
+// ── Visual node flash ─────────────────────────────────────────────────────
+function updateVisualiser(isERP) {
+  ['node-internet','node-nginx','arrow-1','arrow-2'].forEach(id => {
+    document.getElementById(id).classList.add('active');
+  });
+  const active = isERP ? 'node-s1' : 'node-s2';
+  const idle   = isERP ? 'node-s2' : 'node-s1';
+  document.getElementById(active).classList.add('active');
+  document.getElementById(idle).classList.remove('active');
+  setTimeout(() => {
+    ['node-internet','node-nginx','arrow-1','arrow-2',active].forEach(id =>
+      document.getElementById(id).classList.remove('active'));
+  }, 600);
+}
+
+// ── Log row ───────────────────────────────────────────────────────────────
+function addLogRow(data, latency, isERP) {
+  const tbody = document.getElementById('log-body');
+  // Clear placeholder
+  if (tbody.children.length === 1 && tbody.children[0].children.length === 1 &&
+      tbody.children[0].children[0].colSpan) {
+    tbody.innerHTML = '';
+  }
+  const badgeClass = isERP ? 'badge-erp' : 'badge-crm';
+  const typeLabel  = isERP ? 'ERP' : 'CRM/WMS';
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${state.total}</td>
+    <td>${new Date().toLocaleTimeString()}</td>
+    <td>${data.service}</td>
+    <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
+    <td style="font-family:monospace;font-size:.72rem">${(data.requestId||'—').slice(0,16)}…</td>
+    <td>${data.hostname || '—'}</td>
+    <td>${latency}ms</td>
+  `;
+  tbody.insertBefore(row, tbody.firstChild);
+  // Keep max 20 rows
+  while (tbody.children.length > 20) tbody.removeChild(tbody.lastChild);
+}
+
+// ── Auto-refresh ──────────────────────────────────────────────────────────
+function toggleAuto() {
+  const btn = document.getElementById('auto-btn');
+  const st  = document.getElementById('auto-status');
+  if (state.autoInterval) {
+    clearInterval(state.autoInterval);
+    state.autoInterval = null;
+    btn.textContent = '⚡ Start Auto-Refresh';
+    st.textContent  = '';
+  } else {
+    const ms = parseInt(document.getElementById('speed-select').value);
+    state.autoInterval = setInterval(sendRequest, ms);
+    btn.textContent = '⏹ Stop Auto-Refresh';
+    btn.style.background = 'rgba(239,68,68,.2)';
+    btn.style.border = '1px solid rgba(239,68,68,.3)';
+    btn.style.color = '#fca5a5';
+    st.textContent = `Auto-firing every ${ms}ms`;
+  }
+}
+
+// ── Load test ─────────────────────────────────────────────────────────────
+async function loadTest() {
+  showToast('🔥 Starting load test — 50 concurrent requests…');
+  const promises = Array.from({ length: 50 }, () => sendRequest());
+  await Promise.all(promises);
+  showToast('✅ Load test complete! Check the distribution bars.');
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────
+function resetStats() {
+  state.erpCount = state.crmCount = state.total = 0;
+  state.log = []; state.rpsWindow = []; state.latencies = [];
+  updateStats(); updateBars();
+  document.getElementById('log-body').innerHTML =
+    '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Reset — no requests yet</td></tr>';
+  document.getElementById('banner-service').textContent = 'Stats reset';
+  showToast('🔄 Stats and log reset.');
+}
+
+// ── Health check ──────────────────────────────────────────────────────────
+async function checkHealth() {
+  const services = [
+    { id: '1', url: `${API_BASE}/health/service1`, badgeId: 's1-health-badge', uptimeId: 's1-uptime' },
+    { id: '2', url: `${API_BASE}/health/service2`, badgeId: 's2-health-badge', uptimeId: 's2-uptime' },
+  ];
+  for (const svc of services) {
+    try {
+      const r = await fetch(svc.url, { cache: 'no-store' });
+      const d = await r.json();
+      const badge = document.getElementById(svc.badgeId);
+      badge.textContent = '✅ Healthy';
+      badge.style.background = 'rgba(16,185,129,.2)';
+      badge.style.color = '#6ee7b7';
+      if (d.uptime) document.getElementById(svc.uptimeId).textContent = `Uptime: ${d.uptime}`;
+    } catch {
+      const badge = document.getElementById(svc.badgeId);
+      badge.textContent = '❌ Offline';
+      badge.style.background = 'rgba(239,68,68,.2)';
+      badge.style.color = '#fca5a5';
+    }
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Footer clock ──────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('footer-time').textContent = new Date().toLocaleString();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 10000);
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+</body>
+</html>
