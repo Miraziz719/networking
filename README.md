@@ -37,7 +37,7 @@ VPC dizayni, yukni muvozanatlash, teskari proksi, monitoring, CI/CD va gorizonta
               │   OCHIQ SUBNET            │
               │   ┌────────────────────┐  │
               │   │   Nginx LB         │  │
-              │   │   :80  / :443      │  │
+              │   │   :8888            │  │
               │   │   Round Robin      │  │
               │   └──────┬──────┬──────┘  │
               └──────────┼──────┼─────────┘
@@ -58,7 +58,7 @@ VPC dizayni, yukni muvozanatlash, teskari proksi, monitoring, CI/CD va gorizonta
               ┌─────────────────────────┐
               │  MONITORING SUBNETI     │
               │  Prometheus :9090       │
-              │  Grafana :3000          │
+              │  Grafana :3030          │
               └─────────────────────────┘
 ```
 
@@ -69,55 +69,55 @@ VPC dizayni, yukni muvozanatlash, teskari proksi, monitoring, CI/CD va gorizonta
 ### Talablar
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) o'rnatilgan bo'lishi kerak
 - [Git](https://git-scm.com/) o'rnatilgan bo'lishi kerak
-- 80-port bo'sh bo'lishi kerak
+- 8888-port bo'sh bo'lishi kerak
 
 ### 1. Loyihani yuklab olish
 ```bash
-git clone https://github.com/SIZNING_FOYDALANUVCHI_NOMINGIZ/cloud-networking-demo.git
-cd cloud-networking-demo
+git clone https://github.com/Miraziz719/networking.git
+cd networking
 ```
 
 ### 2. Asosiy stekni ishga tushirish
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 ### 3. Dashboardni ochish
-Manzil: **http://localhost**
+Manzil: **http://localhost:8888**
 
 ### 4. Monitoringni ishga tushirish (ixtiyoriy, alohida terminal)
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up --build -d
 ```
 
 | Xizmat                 | URL                              | Kirish ma'lumotlari |
 |------------------------|----------------------------------|---------------------|
-| Dashboard              | http://localhost                 | —                   |
+| Dashboard              | http://localhost:8888            | —                   |
 | Prometheus             | http://localhost:9090            | —                   |
-| Grafana                | http://localhost:3000            | admin / btecunit6   |
-| ERP To'g'ridan-to'g'ri | http://localhost/health/service1 | —                   |
-| CRM To'g'ridan-to'g'ri | http://localhost/health/service2 | —                   |
+| Grafana                | http://localhost:3030            | admin / btecunit6   |
+| ERP To'g'ridan-to'g'ri | http://localhost:8888/health/service1 | —              |
+| CRM To'g'ridan-to'g'ri | http://localhost:8888/health/service2 | —              |
 
 ---
 
 ## ⚡ Yukni Muvozanatlashni Namoyish Etish
 
 ### 1-usul: Brauzer orqali
-**http://localhost** ni oching va **"So'rov Yuborish"** tugmasini ketma-ket bosing.
+**http://localhost:8888** ni oching va **"So'rov Yuborish"** tugmasini ketma-ket bosing.
 Faol Xizmat bannerining ERP va CRM/WMS o'rtasida almashib turishini kuzating — bu round-robin!
 
 ### 2-usul: Buyruq satri orqali
 ```bash
 # 10 ta so'rov yuborib, xizmat almashishini kuzating
 for i in {1..10}; do
-  curl -s http://localhost/api/ | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['service'])"
+  curl -s http://localhost:8888/api/ | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['service'])"
 done
 ```
 
 ### 3-usul: Yuklamani test qilish
 ```bash
 chmod +x scripts/load-test.sh
-./scripts/load-test.sh --requests 100 --url http://localhost
+./scripts/load-test.sh --requests 100 --url http://localhost:8888
 ```
 
 ---
@@ -127,7 +127,7 @@ chmod +x scripts/load-test.sh
 Bir nechta nusxa ishga tushirish:
 ```bash
 # Har bir xizmatdan 3 ta nusxa ishga tushirish (jami 6 ta backend)
-docker compose up --build --scale service-1=3 --scale service-2=3
+docker compose up --build -d --scale service-1=3 --scale service-2=3
 ```
 
 Nginx hech qanday sozlama o'zgartirmasdan barcha nusxalar bo'ylab so'rovlarni avtomatik taqsimlaydi.
@@ -140,9 +140,9 @@ barcha nusxalarga tarqalatganini isbotlaydi.
 
 Monitoring stekini ishga tushirgandan so'ng:
 
-1. **http://localhost:3000** manzilini oching (Grafana)
+1. **http://localhost:3030** manzilini oching (Grafana)
 2. `admin` / `btecunit6` bilan kiring
-3. **Dashboards → Cloud Networking → BTEC Unit 6 — Cloud Networking Monitor** ga o'ting
+3. **Dashboards → Cloud Networking → Cloud Networking Monitor** ga o'ting
 
 Dashboard quyidagilarni ko'rsatadi:
 - Har bir xizmat uchun sekundiga so'rovlar soni
@@ -161,7 +161,7 @@ Docker tarmoqlari VPC subnetlarini simulyatsiya qiladi. `public-net` — interne
 murojaat qilib bo'lmaydi — barcha trafik avval Nginx orqali o'tadi.
 
 ### Teskari Proksi (Reverse Proxy)
-Nginx 80/443-portda har bir so'rovni qabul qiladi. Yo'l qoidalariga asoslanib to'g'ri backendga
+Nginx 8888-portda har bir so'rovni qabul qiladi. Yo'l qoidalariga asoslanib to'g'ri backendga
 yo'naltiradi, so'ng backend javobini mijozga qaytaradi. Mijoz backendga bevosita murojaat qilmaydi —
 u faqat Nginx IP manzilini ko'radi.
 
@@ -184,7 +184,7 @@ Docker Compose ichki DNS yozuvlarini yaratadi. Nginx backendlarga xizmat nomi or
 Konteyner qayta ishga tushsa va yangi IP olsa ham, Nginx unga nom orqali yeta oladi.
 
 ### Xavfsizlik Devori / Xavfsizlik Guruhlari
-Faqat Nginx 80 va 443 portlarni hostga ochadi. Backend xizmatlar `expose:` (ports: emas) ishlatadi,
+Faqat Nginx 8888-portni hostga ochadi. Backend xizmatlar `expose:` (ports: emas) ishlatadi,
 ya'ni ular faqat Docker tarmog'i ichida murojaat qilinishi mumkin — bu AWS Security Groups-ning
 yopiq subnet resurslariga to'g'ridan-to'g'ri kiruvchi ulanishlarni bloklashini simulyatsiya qiladi.
 
@@ -263,7 +263,7 @@ chmod +x scripts/deploy.sh
 ### Qo'lda joylashtirish (AWS EC2)
 ```bash
 # 1. EC2 nusxa ishga tushirish (Ubuntu 22.04, demo uchun t2.micro)
-# 2. Security Group ochish: 22, 80, 443, 9090, 3000 portlari
+# 2. Security Group ochish: 22, 80, 443, 8888, 9090, 3030 portlari
 # 3. Serverga SSH orqali kirish
 ssh -i your-key.pem ubuntu@SIZNING_EC2_IP
 
@@ -273,8 +273,8 @@ sudo usermod -aG docker ubuntu
 newgrp docker
 
 # 5. Repozitoriyani klonlash
-git clone https://github.com/SIZNING_FOYDALANUVCHI_NOMINGIZ/cloud-networking-demo.git
-cd cloud-networking-demo
+git clone https://github.com/Miraziz719/networking.git
+cd networking
 
 # 6. Stekni ishga tushirish
 docker compose up --build -d
@@ -328,23 +328,6 @@ main ga push
 
 ---
 
-## 📸 Skrinshot Qo'llanmasi (BTEC Hisoboti uchun)
-
-Vazifa hisobotini yozayotganda quyidagilarning skrinshotini oling:
-
-1. **`docker compose up` natijasi** — barcha konteynerlar ishga tushayotgani, salomatlik tekshiruvi o'tishi
-2. **Dashboard — bo'sh holat** — arxitektura diagram panelini ko'rsating
-3. **Dashboard — 10 ta so'rovdan so'ng** — taqsimlash grafiklarini ko'rsating (50/50 bo'linish)
-4. **Dashboard — yuklamani testdan so'ng** — 100 ta so'rov, deyarli teng taqsimlash
-5. **Yuklamani test terminal natijasi** — ERP/CRM soni va muvozanat sifatini ko'rsatadi
-6. **`docker compose ps`** — barcha konteynerlar `healthy` holati
-7. **Grafana dashboard** — so'rovlar tezligi grafigi, kechikish, CPU/xotira panellari
-8. **Prometheus maqsadlar sahifasi** (`http://localhost:9090/targets`) — barcha maqsadlar YOQIQ (yashil)
-9. **Nginx jurnallari** — `docker compose logs nginx` upstream server almashishini ko'rsatadi
-10. **Masshtablangan joylashtirish** — `docker compose up --scale service-1=3 --scale service-2=3`, keyin `docker compose ps` 6 ta backend konteyner ko'rsatadi
-
----
-
 ## 🛠️ Foydali Buyruqlar
 
 ```bash
@@ -358,7 +341,7 @@ docker compose logs -f service-1
 docker compose ps
 
 # Xizmatlarni kengaytirish
-docker compose up --scale service-1=3 --scale service-2=3
+docker compose up -d --scale service-1=3 --scale service-2=3
 
 # Xizmatni qayta ishga tushirish (nosozlik/tiklashni simulyatsiya qilish)
 docker compose restart service-1
@@ -370,7 +353,7 @@ docker compose down
 docker compose down -v
 
 # Yuklamani test qilish
-./scripts/load-test.sh --requests 200 --url http://localhost
+./scripts/load-test.sh --requests 200 --url http://localhost:8888
 
 # Nginx konfiguratsiya sintaksisini tekshirish
 docker compose exec nginx nginx -t
