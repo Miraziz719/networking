@@ -41,7 +41,7 @@ async function runTests() {
     const erp = await request('/api/erp');
     assert(erp.status === 200, 'GET /api/erp returns 200');
     const body = JSON.parse(erp.body);
-    assert(body.success === true, '/api/erp returns success: true');
+    assert(typeof body.service === 'string', '/api/erp returns service field');
   } catch (e) {
     console.error('ERP endpoint failed:', e.message);
     failed++;

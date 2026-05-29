@@ -41,7 +41,7 @@ async function runTests() {
     const crm = await request('/api/crm');
     assert(crm.status === 200, 'GET /api/crm returns 200');
     const body = JSON.parse(crm.body);
-    assert(body.success === true, '/api/crm returns success: true');
+    assert(typeof body.service === 'string', '/api/crm returns service field');
   } catch (e) {
     console.error('CRM endpoint failed:', e.message);
     failed++;
@@ -51,7 +51,7 @@ async function runTests() {
     const wms = await request('/api/wms');
     assert(wms.status === 200, 'GET /api/wms returns 200');
     const body = JSON.parse(wms.body);
-    assert(body.success === true, '/api/wms returns success: true');
+    assert(typeof body.service === 'string', '/api/wms returns service field');
   } catch (e) {
     console.error('WMS endpoint failed:', e.message);
     failed++;
