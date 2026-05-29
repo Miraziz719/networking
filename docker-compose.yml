@@ -58,7 +58,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: frontend-dashboard
     networks:
       - private-net
     restart: unless-stopped
@@ -71,13 +70,10 @@ services:
     build:
       context: ./service-1
       dockerfile: Dockerfile
-    container_name: erp-service-1
     environment:
       - PORT=3001
       - SERVICE_NAME=ERP-Service-1
       - NODE_ENV=production
-    ports:
-      - "3001:3001"   # Also accessible directly on host port 3001
     networks:
       - private-net   # Private subnet only — no direct internet access
     restart: unless-stopped
@@ -97,13 +93,10 @@ services:
     build:
       context: ./service-2
       dockerfile: Dockerfile
-    container_name: crm-wms-service-2
     environment:
       - PORT=3002
       - SERVICE_NAME=CRM-WMS-Service-2
       - NODE_ENV=production
-    ports:
-      - "3002:3002"   # Also accessible directly on host port 3002
     networks:
       - private-net   # Private subnet only
     restart: unless-stopped

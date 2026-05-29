@@ -181,25 +181,17 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Copy docker-compose files to server
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            docker-compose.yml \
-            docker-compose.monitoring.yml \
-            .env.example \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:~/cloud-networking/
-
       - name: Deploy on server
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'EOF'
             set -e
-            cd ~/cloud-networking
+            cd ~/networking
 
-            # Pull latest images
-            docker compose pull
+            # Pull latest code
+            git pull origin main
 
-            # Rolling restart with zero-downtime
-            docker compose up -d --remove-orphans
+            # Rebuild and restart containers
+            docker compose up --build -d --remove-orphans
 
             # Clean up old images
             docker image prune -f
@@ -210,8 +202,8 @@ jobs:
 
       - name: Health check after deploy
         run: |
-          sleep 15  # Wait for services to start
-          status=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.DEPLOY_HOST }}/health/service1)
+          sleep 15
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.DEPLOY_HOST }}:8888/health/service1)
           if [ "$status" != "200" ]; then
             echo "❌ Health check failed! Status: $status"
             exit 1
