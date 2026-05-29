@@ -201,13 +201,18 @@ jobs:
 
       - name: Health check after deploy
         run: |
-          sleep 15
-          status=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.DEPLOY_HOST }}:8888/health/service1)
-          if [ "$status" != "200" ]; then
-            echo "❌ Health check failed! Status: $status"
-            exit 1
-          fi
-          echo "✅ Health check passed (HTTP $status)"
+          echo "Waiting for containers to start..."
+          for i in $(seq 1 10); do
+            sleep 10
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.DEPLOY_HOST }}:8888/health/service1)
+            echo "Attempt $i: HTTP $status"
+            if [ "$status" = "200" ]; then
+              echo "✅ Health check passed (HTTP $status)"
+              exit 0
+            fi
+          done
+          echo "❌ Health check failed after 100s"
+          exit 1
 
       - name: Notify deployment status
         if: always()
