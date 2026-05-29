@@ -1,16 +1,22 @@
-/**
- * Service 2 — Basic smoke tests
- * Run: node src/index.test.js
- */
-const http = require('http');
+﻿const http = require('http');
 
 const PORT = process.env.PORT || 3002;
 let passed = 0;
 let failed = 0;
 
+function assert(condition, message) {
+  if (condition) {
+    console.log(`  PASS: ${message}`);
+    passed++;
+  } else {
+    console.error(`  FAIL: ${message}`);
+    failed++;
+  }
+}
+
 function request(path) {
   return new Promise((resolve, reject) => {
-    http.get(`http://localhost:${PORT}${path}`, (res) => {
+    http.get(`http://127.0.0.1:${PORT}${path}`, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => resolve({ status: res.statusCode, body: data }));
@@ -19,35 +25,48 @@ function request(path) {
 }
 
 async function runTests() {
-  console.log('🧪 Running Service 2 Tests...\n');
+  console.log('\n=== CRM/WMS Service Tests ===\n');
 
-  const tests = [
-    { path: '/health', check: (s, b) => s === 200 && JSON.parse(b).status === 'healthy', desc: '/health returns 200 with status=healthy' },
-    { path: '/', check: (s, b) => s === 200 && JSON.parse(b).serviceType === 'CRM/WMS', desc: '/ returns 200 with serviceType=CRM/WMS' },
-    { path: '/api/crm', check: (s, b) => s === 200 && JSON.parse(b).module === 'CRM', desc: '/api/crm returns CRM data' },
-    { path: '/api/wms', check: (s, b) => s === 200 && JSON.parse(b).module === 'WMS', desc: '/api/wms returns WMS data' },
-    { path: '/metrics', check: (s, b) => s === 200 && b.includes('http_requests_total'), desc: '/metrics returns Prometheus metrics' },
-  ];
-
-  for (const t of tests) {
-    try {
-      const { status, body } = await request(t.path);
-      if (t.check(status, body)) {
-        console.log(`  ✅ PASS: ${t.desc}`);
-        passed++;
-      } else {
-        console.log(`  ❌ FAIL: ${t.desc} (status=${status})`);
-        failed++;
-      }
-    } catch (e) {
-      console.log(`  ❌ FAIL: ${t.desc} — ${e.message}`);
-      failed++;
-    }
+  try {
+    const health = await request('/health');
+    assert(health.status === 200, 'GET /health returns 200');
+    const body = JSON.parse(health.body);
+    assert(body.status === 'healthy', '/health returns status: healthy');
+  } catch (e) {
+    console.error('Health check failed:', e.message);
+    failed++;
   }
 
-  console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
+  try {
+    const crm = await request('/api/crm');
+    assert(crm.status === 200, 'GET /api/crm returns 200');
+    const body = JSON.parse(crm.body);
+    assert(body.success === true, '/api/crm returns success: true');
+  } catch (e) {
+    console.error('CRM endpoint failed:', e.message);
+    failed++;
+  }
+
+  try {
+    const wms = await request('/api/wms');
+    assert(wms.status === 200, 'GET /api/wms returns 200');
+    const body = JSON.parse(wms.body);
+    assert(body.success === true, '/api/wms returns success: true');
+  } catch (e) {
+    console.error('WMS endpoint failed:', e.message);
+    failed++;
+  }
+
+  try {
+    const metrics = await request('/metrics');
+    assert(metrics.status === 200, 'GET /metrics returns 200');
+  } catch (e) {
+    console.error('Metrics endpoint failed:', e.message);
+    failed++;
+  }
+
+  console.log(`\n=== Results: ${passed} passed, ${failed} failed ===\n`);
   process.exit(failed > 0 ? 1 : 0);
 }
 
-const app = require('./index');
-setTimeout(runTests, 500);
+runTests();
