@@ -168,7 +168,6 @@ jobs:
 
     environment:
       name: production
-      url: http://${{ secrets.DEPLOY_HOST }}
 
     steps:
       - name: Checkout code
