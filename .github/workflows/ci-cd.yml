@@ -192,6 +192,9 @@ jobs:
             # Rebuild and restart containers
             docker compose up --build -d --remove-orphans
 
+            # Reload nginx so it picks up new container IPs
+            docker exec nginx-lb nginx -s reload || docker compose restart nginx
+
             # Clean up old images
             docker image prune -f
 
